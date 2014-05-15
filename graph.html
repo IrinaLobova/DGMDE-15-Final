@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<style>
+    body {
+        margin: 0;
+        font-family: sans-serif;
+        font-size: 11px;
+    }
+
+    .axis {
+        color: #424242;
+    }
+
+    .axis path, .axis line {
+      fill: none;
+      stroke: #424242;
+      shape-rendering: crispEdges;
+    }
+
+    circle:hover {
+        fill: orange;
+    }
+
+</style>
+</head>
+
+<body>
+<script>
+    /* screate an svg element */
+    var svg = d3.select("body")
+                .append("svg")
+                .attr ({
+                    width:  window.innerWidth,
+                    height: window.innerHeight
+                });
+    
+    /* function to parse year figure into date format */
+    var parse = d3.time.format("%Y").parse;
+
+    /* parse csv and make the visualization */
+    d3.csv("unemployment.csv", 
+           function (d) { d.year = parse(d.year); return d; }, /* transform year number into date format */ 
+           function (data) {
+                var radius = 4; /* radious of the circles */
+    
+                /* function to scale date proportionally to the screen size */
+                var yearScale = d3.time.scale()
+                              .domain(d3.extent(data, function (d) { return d.year; } ))
+                              .range([50, window.innerWidth - 50]);
+
+                /* function to scale rate proportionally to the screen size */
+                var rateScale = d3.scale.linear()
+                              .domain( [0, d3.max(data, function (d) { return d.rate; }) ])
+                              .range([50, window.innerHeight - 50]);
+                
+                /* year axis function with long ticks */
+                var yearAxis = d3.svg.axis()
+                                 .scale(yearScale)
+                                 .tickSize(100 - window.innerHeight)
+                                 .orient("bottom");
+               
+                /* draw/append year axis */
+                svg.append("g")
+                   .attr ({
+                     "class" : "axis",
+                     "transform" : "translate(" + [0, window.innerHeight - 50 ] + ")"
+                   })
+                   .call(yearAxis);
+
+                /* draw a line on the top to make the shape look like a rectangle */
+                svg.append("line")
+                   .attr({
+                        x1: 50,
+                        y1: 50,
+                        x2: window.innerWidth - 50,
+                        y2: 50,
+                        fill: "none",
+                        stroke: "#424242",
+                    });
+                
+                /* function to draw the path lines between data points */
+                var path = d3.svg.line()
+                              .x(function (d) { return yearScale(d.year); })
+                              .y(function (d) { return window.innerHeight - rateScale(d.rate); });
+
+                /* append the path between data points */
+                svg.append("path")
+                   .data([data])
+                   .attr({
+                        d: path,
+                        fill: "none",
+                        stroke: "#084594",
+                        "stroke-width": 4
+                   });
+
+                /* add the actual dots */
+                svg.selectAll("circle")
+                   .data(data)
+                   .enter()
+                   .append("circle")
+                   .attr({ 
+                        cx: function (d) { return yearScale(d.year); },
+                        cy: function (d) { return window.innerHeight - rateScale(d.rate); },
+                        r: radius,
+                        fill: '#fff',
+                        stroke: '#084594',
+                        "stroke-width": 4
+                       })   /* add mouse over event */
+                   .on("mouseover", function (d, i) { 
+                       d3.select(this).attr({ r: radius * 2 });
+
+                       svg.append("text")
+                       .attr({ 
+                          id: "t" + i,
+                          x: function () { return yearScale(d.year) - 30; }, 
+                          y: function () { return window.innerHeight - rateScale(d.rate) - 15; }
+                        })
+                        .text(function () { return d.rate });
+                       })   /* add mouse out event */
+                   .on("mouseout", function (d, i) {
+                       d3.select(this).attr({ r: radius });
+                       d3.select("#t" + i).remove();
+                   });
+          });
+</script>
+
+</body>
+</html>
